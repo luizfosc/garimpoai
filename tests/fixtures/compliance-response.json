@@ -1,0 +1,35 @@
+{
+  "score": 75,
+  "parecer": "parcialmente_apto",
+  "resumo": "A empresa possui a maioria dos documentos necessarios, mas falta a certidao estadual e o atestado de capacidade tecnica precisa ser verificado.",
+  "itens": [
+    {
+      "requisito": "Certidao Negativa de Debitos Federais",
+      "status": "atendido",
+      "tipoDocumento": "certidao_federal",
+      "documentoNome": "CND Federal",
+      "observacao": "Documento vigente e dentro da validade."
+    },
+    {
+      "requisito": "Certidao Negativa de Debitos Estaduais",
+      "status": "pendente",
+      "tipoDocumento": "certidao_estadual",
+      "documentoNome": null,
+      "observacao": "Empresa nao possui certidao estadual cadastrada. Solicite na SEFAZ do seu estado."
+    },
+    {
+      "requisito": "Certidao de Regularidade do FGTS",
+      "status": "atendido",
+      "tipoDocumento": "certidao_fgts",
+      "documentoNome": "CRF FGTS",
+      "observacao": "Documento vigente."
+    },
+    {
+      "requisito": "Atestado de Capacidade Tecnica",
+      "status": "parcial",
+      "tipoDocumento": "atestado_capacidade",
+      "documentoNome": "Atestado Projeto X",
+      "observacao": "Atestado cadastrado, mas verifique se o escopo e compativel com o objeto da licitacao."
+    }
+  ]
+}

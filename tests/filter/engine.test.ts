@@ -19,6 +19,7 @@ function makeConfig(dataDir: string): GarimpoAIConfig {
     },
     ia: { provider: 'anthropic', apiKey: '', autoAnalyze: false, maxPerDay: 50, chatModel: '', analysisModel: '' },
     scheduler: { intervalMinutes: 30 },
+    chat: { historyRetentionDays: 90, maxSessionsListed: 10 },
     dataDir,
   };
 }

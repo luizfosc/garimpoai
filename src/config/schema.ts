@@ -48,6 +48,11 @@ export const schedulerConfigSchema = z.object({
   intervalMinutes: z.number().min(5).max(1440).default(30),
 });
 
+export const chatConfigSchema = z.object({
+  historyRetentionDays: z.number().min(1).max(365).default(90),
+  maxSessionsListed: z.number().min(1).max(100).default(10),
+});
+
 export const configSchema = z.object({
   pncp: pncpConfigSchema.default({}),
   alertas: z.object({
@@ -56,6 +61,7 @@ export const configSchema = z.object({
   }).default({}),
   ia: iaConfigSchema.default({}),
   scheduler: schedulerConfigSchema.default({}),
+  chat: chatConfigSchema.default({}),
   dataDir: z.string().default(''),
 });
 

@@ -102,6 +102,10 @@ ia:
 
 scheduler:
   intervalMinutes: 30
+
+chat:
+  historyRetentionDays: 90
+  maxSessionsListed: 10
 `;
 }
 

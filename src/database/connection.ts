@@ -243,5 +243,16 @@ export function initializeDb(dataDir?: string): void {
       documento_nome TEXT,
       observacao TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS chat_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      session_id TEXT NOT NULL,
+      role TEXT NOT NULL CHECK(role IN ('user', 'assistant')),
+      content TEXT NOT NULL,
+      timestamp TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_chat_session ON chat_history(session_id);
+    CREATE INDEX IF NOT EXISTS idx_chat_timestamp ON chat_history(timestamp);
   `);
 }

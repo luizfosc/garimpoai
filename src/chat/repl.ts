@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import crypto from 'crypto';
 import readline from 'readline';
 import chalk from 'chalk';
 import { GarimpoAIConfig } from '../types/config';
@@ -6,6 +7,7 @@ import { SYSTEM_PROMPT } from './system-prompt';
 import { TOOLS } from './tools';
 import { ToolExecutor } from './tool-executor';
 import { FilterEngine } from '../filter/engine';
+import { saveMessage, listSessions, loadSession } from './history';
 
 const MAX_CONTEXT_MESSAGES = 20;
 
@@ -21,6 +23,7 @@ export async function startChat(config: GarimpoAIConfig): Promise<void> {
   const client = new Anthropic({ apiKey: config.ia.apiKey });
   const toolExecutor = new ToolExecutor(config);
   const filterEngine = new FilterEngine(config);
+  let sessionId = crypto.randomUUID();
 
   // Show header
   const stats = filterEngine.getStats();
@@ -60,6 +63,8 @@ export async function startChat(config: GarimpoAIConfig): Promise<void> {
         console.log(chalk.dim('\n  Comandos rápidos:'));
         console.log(chalk.dim('  /collect     — Coletar licitações agora'));
         console.log(chalk.dim('  /stats       — Ver estatísticas'));
+        console.log(chalk.dim('  /history     — Listar sessões anteriores'));
+        console.log(chalk.dim('  /history <id> — Carregar sessão anterior'));
         console.log(chalk.dim('  /docs        — Listar documentos da empresa'));
         console.log(chalk.dim('  /compliance  — Verificar aptidão para última licitação'));
         console.log(chalk.dim('  /vencendo    — Documentos vencendo/vencidos'));
@@ -81,6 +86,41 @@ export async function startChat(config: GarimpoAIConfig): Promise<void> {
         console.log(chalk.dim(`\n  Total: ${s.total} | Matched: ${s.matched} | Analisadas: ${s.analisados}\n`));
         return;
       }
+      if (cmd === '/history' || cmd.startsWith('/history ')) {
+        const args = userInput.trim().substring('/history'.length).trim();
+        if (!args) {
+          // List recent sessions
+          const sessions = listSessions(config.dataDir, config.chat.maxSessionsListed);
+          if (sessions.length === 0) {
+            console.log(chalk.dim('\n  Nenhuma sessão salva ainda.\n'));
+          } else {
+            console.log(chalk.dim('\n  Sessões recentes:'));
+            for (const s of sessions) {
+              const preview = (s.preview || '').substring(0, 60);
+              const shortId = s.sessionId.substring(0, 8);
+              console.log(chalk.dim(`  ${shortId}  ${s.lastTimestamp}  (${s.messageCount} msgs)  ${preview}`));
+            }
+            console.log(chalk.dim(`\n  Use /history <id> para carregar uma sessão.\n`));
+          }
+        } else {
+          // Load specific session
+          const sessions = listSessions(config.dataDir, 100);
+          const match = sessions.find(s => s.sessionId.startsWith(args));
+          if (!match) {
+            console.log(chalk.red(`\n  Sessão "${args}" não encontrada.\n`));
+          } else {
+            const history = loadSession(config.dataDir, match.sessionId);
+            // Create new session but pre-populate context
+            sessionId = crypto.randomUUID();
+            messages.length = 0;
+            for (const msg of history) {
+              messages.push({ role: msg.role as 'user' | 'assistant', content: msg.content });
+            }
+            console.log(chalk.dim(`\n  Sessão carregada (${history.length} msgs). Nova sessão: ${sessionId.substring(0, 8)}\n`));
+          }
+        }
+        return;
+      }
       if (cmd === '/collect') {
         userInput = 'colete novas licitações dos últimos 7 dias';
       }
@@ -97,6 +137,7 @@ export async function startChat(config: GarimpoAIConfig): Promise<void> {
 
     // Add user message
     messages.push({ role: 'user', content: userInput });
+    saveMessage(config.dataDir, sessionId, 'user', userInput);
 
     // Keep context window manageable
     while (messages.length > MAX_CONTEXT_MESSAGES) {
@@ -162,6 +203,7 @@ export async function startChat(config: GarimpoAIConfig): Promise<void> {
         const text = textBlocks.map((b) => b.text).join('\n');
         console.log(`\n${text}\n`);
         messages.push({ role: 'assistant', content: response.content });
+        saveMessage(config.dataDir, sessionId, 'assistant', text);
       }
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);

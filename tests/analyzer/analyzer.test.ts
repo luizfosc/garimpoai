@@ -51,6 +51,7 @@ function makeConfig(dataDir: string): GarimpoAIConfig {
       analysisModel: 'claude-sonnet-4-5-20250929',
     },
     scheduler: { intervalMinutes: 30 },
+    chat: { historyRetentionDays: 90, maxSessionsListed: 10 },
     dataDir,
   };
 }

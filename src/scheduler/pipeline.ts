@@ -7,6 +7,7 @@ import { Analyzer } from '../analyzer/analyzer';
 import { Notifier } from '../notifier/notifier';
 import { isLimitReached } from '../analyzer/cost-tracker';
 import { checkExpiry } from '../documents/expiry-checker';
+import { cleanupOldSessions } from '../chat/history';
 
 export interface PipelineResult {
   coletados: number;
@@ -68,16 +69,23 @@ export async function runPipeline(
   }
 
   // Step 4: Notify
-  log('[Pipeline] 4/5 Processando alertas...');
+  log('[Pipeline] 4/6 Processando alertas...');
   const notifier = new Notifier(config, log);
   const notificacoes = await notifier.processAlerts();
 
   // Step 5: Check document expiry
-  log('[Pipeline] 5/5 Verificando vencimento de documentos...');
+  log('[Pipeline] 5/6 Verificando vencimento de documentos...');
   const expiryResult = checkExpiry(config.dataDir);
   const docsVencendo = expiryResult.expiring.length + expiryResult.expired.length;
   if (docsVencendo > 0) {
     log(`[Pipeline] ${expiryResult.expired.length} vencido(s), ${expiryResult.expiring.length} vencendo`);
+  }
+
+  // Step 6: Cleanup old chat history
+  log('[Pipeline] 6/6 Limpando historico de chat antigo...');
+  const chatCleaned = cleanupOldSessions(config.dataDir, config.chat.historyRetentionDays);
+  if (chatCleaned > 0) {
+    log(`[Pipeline] ${chatCleaned} mensagens de chat removidas (>${config.chat.historyRetentionDays} dias)`);
   }
 
   const duracaoMs = Date.now() - startTime;

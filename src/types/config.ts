@@ -44,10 +44,16 @@ export interface SchedulerConfig {
   intervalMinutes: number;
 }
 
+export interface ChatConfig {
+  historyRetentionDays: number;
+  maxSessionsListed: number;
+}
+
 export interface GarimpoAIConfig {
   pncp: PncpConfig;
   alertas: AlertasConfig;
   ia: IaConfig;
   scheduler: SchedulerConfig;
+  chat: ChatConfig;
   dataDir: string;
 }

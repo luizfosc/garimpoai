@@ -39,3 +39,9 @@ ia:
 
 scheduler:
   intervalMinutes: 30
+
+chat:
+  # Dias para manter historico de conversas (1-365)
+  historyRetentionDays: 90
+  # Maximo de sessoes listadas no /history (1-100)
+  maxSessionsListed: 10

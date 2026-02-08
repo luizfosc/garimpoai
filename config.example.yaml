@@ -28,6 +28,14 @@ alertas:
     smtpPass: ""
     from: ""
     to: ""
+  smart:
+    # Classificacao semantica com IA (requer API key)
+    useSemanticMatching: true
+    semanticModel: "claude-haiku-4-5-20251001"
+    # Score minimo para enviar notificacao (0-100)
+    semanticThreshold: 60
+    # Max classificacoes por ciclo (controle de custo)
+    maxClassificationsPerCycle: 20
 
 ia:
   provider: "anthropic"

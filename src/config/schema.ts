@@ -58,11 +58,19 @@ export const exportConfigSchema = z.object({
   csvSeparator: z.string().default(';'),
 });
 
+export const smartAlertConfigSchema = z.object({
+  useSemanticMatching: z.boolean().default(true),
+  semanticModel: z.string().default('claude-haiku-4-5-20251001'),
+  semanticThreshold: z.number().min(0).max(100).default(60),
+  maxClassificationsPerCycle: z.number().min(1).max(100).default(20),
+});
+
 export const configSchema = z.object({
   pncp: pncpConfigSchema.default({}),
   alertas: z.object({
     telegram: telegramConfigSchema.default({}),
     email: emailConfigSchema.default({}),
+    smart: smartAlertConfigSchema.default({}),
   }).default({}),
   ia: iaConfigSchema.default({}),
   scheduler: schedulerConfigSchema.default({}),

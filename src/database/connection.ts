@@ -262,5 +262,15 @@ export function initializeDb(dataDir?: string): void {
       results_count INTEGER DEFAULT 0,
       timestamp TEXT DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS alert_scores (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      alerta_id INTEGER NOT NULL REFERENCES alertas(id),
+      licitacao_id TEXT NOT NULL,
+      semantic_score REAL NOT NULL,
+      resumo TEXT,
+      timestamp TEXT DEFAULT (datetime('now')),
+      UNIQUE(alerta_id, licitacao_id)
+    );
   `);
 }

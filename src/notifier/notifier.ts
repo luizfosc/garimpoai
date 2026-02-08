@@ -6,7 +6,8 @@ import { GarimpoAIConfig } from '../types/config';
 import { FilterEngine, FilterResult } from '../filter/engine';
 import { TelegramNotifier } from './telegram';
 import { EmailNotifier } from './email';
-import { formatTelegramBatch, formatEmailHtml } from './templates';
+import { formatTelegramBatch, formatEmailHtml, ScoredMatch } from './templates';
+import { classifyRelevance, regexFallbackScore, getCachedScore, cacheScore } from './smart';
 import { eq, and, sql } from 'drizzle-orm';
 
 export class Notifier {
@@ -84,19 +85,74 @@ export class Notifier {
 
         this.log(`Alerta "${alert.nome}": ${newMatches.length} nova(s) licitacao(oes)`);
 
+        // Smart classification: score each match
+        const smartConfig = this.config.alertas.smart;
+        const useSemanticMatching = smartConfig?.useSemanticMatching !== false;
+        const hasApiKey = !!this.config.ia.apiKey;
+        const semanticModel = smartConfig?.semanticModel || 'claude-haiku-4-5-20251001';
+        const semanticThreshold = smartConfig?.semanticThreshold ?? 60;
+        const maxPerCycle = smartConfig?.maxClassificationsPerCycle ?? 20;
+        let classifiedCount = 0;
+
+        const scoredMatches: ScoredMatch[] = [];
+
+        for (const match of newMatches) {
+          // 1. Check cache first
+          const cached = getCachedScore(this.config.dataDir, alert.id, match.numeroControlePNCP);
+          if (cached) {
+            if (cached.score >= semanticThreshold) {
+              scoredMatches.push({ ...match, semanticScore: cached.score, semanticResumo: cached.resumo });
+            }
+            continue;
+          }
+
+          // 2. IA classification if within limits
+          if (useSemanticMatching && hasApiKey && classifiedCount < maxPerCycle) {
+            try {
+              const result = await classifyRelevance(match, keywords, this.config.ia.apiKey, semanticModel, this.config.dataDir);
+              classifiedCount++;
+              cacheScore(this.config.dataDir, alert.id, match.numeroControlePNCP, result.score, result.resumo);
+              if (result.score >= semanticThreshold) {
+                scoredMatches.push({ ...match, semanticScore: result.score, semanticResumo: result.resumo });
+              }
+            } catch (err) {
+              this.log(`Erro na classificacao IA: ${err}`);
+              // Fall through to regex
+              const fallback = regexFallbackScore(match, keywords);
+              cacheScore(this.config.dataDir, alert.id, match.numeroControlePNCP, fallback.score, fallback.resumo);
+              if (fallback.score >= semanticThreshold) {
+                scoredMatches.push({ ...match, semanticScore: fallback.score, semanticResumo: fallback.resumo });
+              }
+            }
+          } else {
+            // 3. Regex fallback
+            const fallback = regexFallbackScore(match, keywords);
+            cacheScore(this.config.dataDir, alert.id, match.numeroControlePNCP, fallback.score, fallback.resumo);
+            if (fallback.score >= semanticThreshold) {
+              scoredMatches.push({ ...match, semanticScore: fallback.score, semanticResumo: fallback.resumo });
+            }
+          }
+        }
+
+        if (scoredMatches.length === 0) {
+          this.log(`Alerta "${alert.nome}": nenhuma licitacao acima do threshold (${semanticThreshold})`);
+          continue;
+        }
+
+        this.log(`Alerta "${alert.nome}": ${scoredMatches.length} licitacao(oes) acima do threshold`);
+
         // Send notifications based on channel
         const canal = alert.canal || 'telegram';
 
         if ((canal === 'telegram' || canal === 'ambos') && this.telegram) {
           try {
-            const message = formatTelegramBatch(newMatches, alert.nome);
+            const message = formatTelegramBatch(scoredMatches, alert.nome);
             await this.telegram.send(message);
             sent++;
           } catch (err) {
             this.log(`Erro Telegram para "${alert.nome}": ${err}`);
-            // Try plain text fallback
             try {
-              const plain = `GarimpoAI: ${newMatches.length} nova(s) licitacao(oes) para "${alert.nome}"`;
+              const plain = `GarimpoAI: ${scoredMatches.length} nova(s) licitacao(oes) para "${alert.nome}"`;
               await this.telegram!.sendPlain(plain);
               sent++;
             } catch {
@@ -107,8 +163,8 @@ export class Notifier {
 
         if ((canal === 'email' || canal === 'ambos') && this.email) {
           try {
-            const subject = `${newMatches.length} nova(s) licitacao(oes) — ${alert.nome}`;
-            const html = formatEmailHtml(newMatches, alert.nome);
+            const subject = `${scoredMatches.length} nova(s) licitacao(oes) — ${alert.nome}`;
+            const html = formatEmailHtml(scoredMatches, alert.nome);
             await this.email.send(subject, html);
             sent++;
           } catch (err) {
@@ -118,7 +174,7 @@ export class Notifier {
         }
 
         // Record sent notifications
-        for (const match of newMatches) {
+        for (const match of scoredMatches) {
           db.insert(notificacoesEnviadas)
             .values({
               alertaId: alert.id,

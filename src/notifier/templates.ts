@@ -2,6 +2,12 @@
 
 import { FilterResult } from '../filter/engine';
 
+/** FilterResult extended with semantic score */
+export interface ScoredMatch extends FilterResult {
+  semanticScore: number;
+  semanticResumo: string;
+}
+
 /** Format a currency value in BRL */
 function formatBRL(value: number | null): string {
   if (value === null || value === undefined) return 'Nao informado';
@@ -29,13 +35,17 @@ export function formatTelegramMessage(licitacao: FilterResult): string {
 }
 
 /** Format a batch of licitacoes for Telegram */
-export function formatTelegramBatch(items: FilterResult[], alertName: string): string {
+export function formatTelegramBatch(items: (FilterResult | ScoredMatch)[], alertName: string): string {
   const header = `*Alerta: ${escapeMarkdown(alertName)}*\n${items.length} nova(s) licitacao(oes) encontrada(s):\n`;
 
   const summaries = items.slice(0, 10).map((item, i) => {
     const valor = formatBRL(item.valorTotalEstimado);
     const uf = item.ufSigla || '??';
-    return `${i + 1}. [${uf}] ${escapeMarkdown(item.objetoCompra.substring(0, 100))} — ${escapeMarkdown(valor)}`;
+    const scored = item as ScoredMatch;
+    const scoreLine = scored.semanticScore !== undefined
+      ? `\n   _Relevancia: ${scored.semanticScore}/100 \\- ${escapeMarkdown(scored.semanticResumo || '')}_`
+      : '';
+    return `${i + 1}. [${uf}] ${escapeMarkdown(item.objetoCompra.substring(0, 100))} — ${escapeMarkdown(valor)}${scoreLine}`;
   });
 
   const footer = items.length > 10 ? `\n_...e mais ${items.length - 10} resultado(s)_` : '';
@@ -44,11 +54,18 @@ export function formatTelegramBatch(items: FilterResult[], alertName: string): s
 }
 
 /** Format a licitacao for email (HTML) */
-export function formatEmailHtml(items: FilterResult[], alertName: string): string {
+export function formatEmailHtml(items: (FilterResult | ScoredMatch)[], alertName: string): string {
+  const hasScores = items.some((item) => (item as ScoredMatch).semanticScore !== undefined);
+
   const rows = items
     .map((item) => {
       const valor = formatBRL(item.valorTotalEstimado);
       const local = [item.municipioNome, item.ufSigla].filter(Boolean).join('/') || 'N/A';
+      const scored = item as ScoredMatch;
+      const scoreCell = hasScores
+        ? `<td style="padding:8px;border-bottom:1px solid #eee">${scored.semanticScore !== undefined ? `${scored.semanticScore}/100` : '-'}</td>
+        <td style="padding:8px;border-bottom:1px solid #eee">${scored.semanticResumo || '-'}</td>`
+        : '';
       return `
       <tr>
         <td style="padding:8px;border-bottom:1px solid #eee">${item.objetoCompra.substring(0, 120)}</td>
@@ -57,9 +74,15 @@ export function formatEmailHtml(items: FilterResult[], alertName: string): strin
         <td style="padding:8px;border-bottom:1px solid #eee">${valor}</td>
         <td style="padding:8px;border-bottom:1px solid #eee">${item.modalidadeNome}</td>
         <td style="padding:8px;border-bottom:1px solid #eee">${item.dataAberturaProposta || '-'}</td>
+        ${scoreCell}
       </tr>`;
     })
     .join('');
+
+  const scoreHeaders = hasScores
+    ? `<th style="padding:8px;text-align:left">Score</th>
+          <th style="padding:8px;text-align:left">Resumo IA</th>`
+    : '';
 
   return `
   <div style="font-family:Arial,sans-serif;max-width:800px;margin:0 auto">
@@ -74,6 +97,7 @@ export function formatEmailHtml(items: FilterResult[], alertName: string): strin
           <th style="padding:8px;text-align:left">Valor</th>
           <th style="padding:8px;text-align:left">Modalidade</th>
           <th style="padding:8px;text-align:left">Prazo</th>
+          ${scoreHeaders}
         </tr>
       </thead>
       <tbody>${rows}</tbody>

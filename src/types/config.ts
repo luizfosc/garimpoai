@@ -26,9 +26,17 @@ export interface EmailConfig {
   to: string;
 }
 
+export interface SmartAlertConfig {
+  useSemanticMatching: boolean;
+  semanticModel: string;
+  semanticThreshold: number;
+  maxClassificationsPerCycle: number;
+}
+
 export interface AlertasConfig {
   telegram: TelegramConfig;
   email: EmailConfig;
+  smart?: SmartAlertConfig;
 }
 
 export interface IaConfig {

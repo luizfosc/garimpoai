@@ -185,6 +185,43 @@ program
   });
 
 program
+  .command('backup')
+  .description('Criar backup do banco de dados')
+  .option('--output <path>', 'Destino customizado para o backup')
+  .action((opts) => {
+    const config = loadConfig();
+    initializeDb(config.dataDir);
+
+    const { createBackup, formatSize } = require('./backup/backup');
+    try {
+      const result = createBackup(config.dataDir, opts.output);
+      console.log(chalk.green(`\n✅ Backup criado com sucesso!`));
+      console.log(chalk.dim(`   Arquivo: ${result.path}`));
+      console.log(chalk.dim(`   Tamanho: ${formatSize(result.sizeBytes)}`));
+      console.log(chalk.dim(`   Tempo: ${result.durationMs}ms\n`));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.log(chalk.red(`\n❌ Erro ao criar backup: ${msg}\n`));
+    }
+  });
+
+program
+  .command('restore <path>')
+  .description('Restaurar banco de dados a partir de backup')
+  .action(async (backupPath: string) => {
+    const config = loadConfig();
+    initializeDb(config.dataDir);
+
+    const { restoreBackup } = require('./backup/restore');
+    const result = await restoreBackup(backupPath, config.dataDir);
+    if (result.restored) {
+      console.log(chalk.green(`\n✅ Backup restaurado com sucesso!\n`));
+    } else {
+      console.log(chalk.red(`\n❌ ${result.error}\n`));
+    }
+  });
+
+program
   .command('stats')
   .description('Estatísticas da base de dados')
   .action(() => {

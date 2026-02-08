@@ -73,7 +73,7 @@ program
 
 program
   .command('search <keywords...>')
-  .description('Buscar licitações por palavras-chave')
+  .description('Buscar licitações por palavras-chave (suporta "exato", AND, NOT, prefixo*)')
   .option('--uf <ufs...>', 'Filtrar por UF(s)')
   .option('--valor-min <number>', 'Valor mínimo')
   .option('--valor-max <number>', 'Valor máximo')

@@ -69,7 +69,12 @@ export async function startChat(config: GarimpoAIConfig): Promise<void> {
         console.log(chalk.dim('  /compliance  — Verificar aptidão para última licitação'));
         console.log(chalk.dim('  /vencendo    — Documentos vencendo/vencidos'));
         console.log(chalk.dim('  /clear       — Limpar conversa'));
-        console.log(chalk.dim('  /quit        — Sair\n'));
+        console.log(chalk.dim('  /quit        — Sair'));
+        console.log(chalk.dim('\n  Busca avançada (FTS5):'));
+        console.log(chalk.dim('  "termo exato"       — Match exato'));
+        console.log(chalk.dim('  termo1 AND termo2   — Ambos obrigatórios'));
+        console.log(chalk.dim('  termo1 NOT termo2   — Exclusão'));
+        console.log(chalk.dim('  termo*              — Prefixo/wildcard\n'));
         return;
       }
       if (cmd === '/quit' || cmd === '/exit' || cmd === '/q') {

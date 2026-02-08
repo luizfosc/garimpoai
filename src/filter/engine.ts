@@ -36,16 +36,14 @@ export class FilterEngine {
     this.config = config;
   }
 
-  /** Search using FTS5 full-text search */
-  searchFullText(keywords: string[], limit = 20): FilterResult[] {
-    const db = getDb(this.config.dataDir);
+  /** Detect if query contains FTS5 advanced operators */
+  static hasAdvancedOperators(query: string): boolean {
+    return /["*]|(\bAND\b)|(\bNOT\b)/i.test(query);
+  }
 
-    // Build FTS5 query: "software" OR "tecnologia"
-    const ftsQuery = keywords
-      .map((k) => `"${k.replace(/"/g, '""')}"`)
-      .join(' OR ');
-
-    const results = db.all<FilterResult>(sql`
+  /** Execute FTS5 query and return results */
+  private executeFtsQuery(db: ReturnType<typeof getDb>, ftsQuery: string, limit: number): FilterResult[] {
+    return db.all<FilterResult>(sql`
       SELECT
         l.id,
         l.numero_controle_pncp as "numeroControlePNCP",
@@ -65,8 +63,32 @@ export class FilterEngine {
       ORDER BY rank
       LIMIT ${limit}
     `);
+  }
 
-    return results;
+  /** Search using FTS5 full-text search */
+  searchFullText(keywords: string[], limit = 20): FilterResult[] {
+    const db = getDb(this.config.dataDir);
+
+    // If single keyword with advanced operators, pass directly to FTS5
+    if (keywords.length === 1 && FilterEngine.hasAdvancedOperators(keywords[0])) {
+      try {
+        return this.executeFtsQuery(db, keywords[0], limit);
+      } catch {
+        // Fallback to simple search on invalid FTS5 syntax
+      }
+    }
+
+    // Build FTS5 query: "software" OR "tecnologia"
+    const ftsQuery = keywords
+      .map((k) => `"${k.replace(/"/g, '""')}"`)
+      .join(' OR ');
+
+    try {
+      return this.executeFtsQuery(db, ftsQuery, limit);
+    } catch {
+      // Fallback: return empty on FTS5 error
+      return [];
+    }
   }
 
   /** Search with combined filters */

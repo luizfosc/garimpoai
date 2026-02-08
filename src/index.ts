@@ -80,11 +80,71 @@ program
   .option('--abertas', 'Apenas com propostas abertas')
   .option('-n, --limit <number>', 'Número de resultados', '20')
   .option('--json', 'Output em JSON')
+  .option('--history', 'Listar últimas 20 buscas')
+  .option('--replay <id>', 'Re-executar busca anterior por ID')
   .action((keywords: string[], opts) => {
     const config = loadConfig();
     initializeDb(config.dataDir);
 
+    const { recordSearch, listSearches, getSearch } = require('./filter/search-history');
+
+    // Handle --history
+    if (opts.history) {
+      const searches = listSearches(config.dataDir, 20);
+      if (searches.length === 0) {
+        console.log(chalk.yellow('\nNenhuma busca registrada ainda.\n'));
+        return;
+      }
+      console.log(chalk.bold('\n📋 Últimas buscas:\n'));
+      for (const s of searches) {
+        const filters = s.filters ? ` (${s.filters})` : '';
+        console.log(chalk.dim(`  #${s.id}  ${s.timestamp}  "${s.query}"  → ${s.resultsCount} resultados${filters}`));
+      }
+      console.log(chalk.dim('\n  Use --replay <id> para re-executar uma busca.\n'));
+      return;
+    }
+
+    // Handle --replay
+    if (opts.replay) {
+      const search = getSearch(config.dataDir, parseInt(opts.replay));
+      if (!search) {
+        console.log(chalk.red(`\nBusca #${opts.replay} não encontrada.\n`));
+        return;
+      }
+      const parsedFilters = search.filters ? JSON.parse(search.filters) : {};
+      const engine = new FilterEngine(config);
+      const results = engine.search({
+        keywords: search.query.split(' '),
+        uf: parsedFilters.uf,
+        valorMin: parsedFilters.valorMin,
+        valorMax: parsedFilters.valorMax,
+        limit: parseInt(opts.limit),
+      });
+
+      recordSearch(config.dataDir, search.query, parsedFilters, results.length);
+      console.log(chalk.bold(`\n🔄 Replay da busca #${search.id}: "${search.query}" → ${results.length} resultados\n`));
+
+      for (let i = 0; i < results.length; i++) {
+        const r = results[i];
+        const valor = r.valorTotalEstimado
+          ? `R$ ${r.valorTotalEstimado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+          : 'Não informado';
+        console.log(chalk.bold(`  ${i + 1}. ${r.modalidadeNome}`));
+        console.log(`     ${r.objetoCompra.substring(0, 100)}${r.objetoCompra.length > 100 ? '...' : ''}`);
+        console.log(chalk.dim(`     🏛️  ${r.orgaoRazaoSocial || 'N/A'} — ${r.municipioNome || ''}/${r.ufSigla || ''}`));
+        console.log(chalk.dim(`     💰 ${valor} | 📅 ${r.dataAberturaProposta || 'Sem prazo'}`));
+        console.log(chalk.dim(`     🔗 ${r.numeroControlePNCP}`));
+        console.log();
+      }
+      return;
+    }
+
     const engine = new FilterEngine(config);
+    const filters: Record<string, unknown> = {};
+    if (opts.uf) filters.uf = opts.uf;
+    if (opts.valorMin) filters.valorMin = parseFloat(opts.valorMin);
+    if (opts.valorMax) filters.valorMax = parseFloat(opts.valorMax);
+
     const results = engine.search({
       keywords,
       uf: opts.uf,
@@ -93,6 +153,9 @@ program
       apenasAbertas: opts.abertas,
       limit: parseInt(opts.limit),
     });
+
+    // Record search in history
+    recordSearch(config.dataDir, keywords.join(' '), Object.keys(filters).length > 0 ? filters : null, results.length);
 
     if (opts.json) {
       console.log(JSON.stringify(results, null, 2));

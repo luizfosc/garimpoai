@@ -254,5 +254,13 @@ export function initializeDb(dataDir?: string): void {
 
     CREATE INDEX IF NOT EXISTS idx_chat_session ON chat_history(session_id);
     CREATE INDEX IF NOT EXISTS idx_chat_timestamp ON chat_history(timestamp);
+
+    CREATE TABLE IF NOT EXISTS search_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      query TEXT NOT NULL,
+      filters TEXT,
+      results_count INTEGER DEFAULT 0,
+      timestamp TEXT DEFAULT (datetime('now'))
+    );
   `);
 }

@@ -11,6 +11,7 @@ import { DocumentManager } from '../documents/manager';
 import { ComplianceEngine } from '../compliance/engine';
 import type { RegisterDocumentInput, TipoDocumento, StatusDocumento } from '../types/documents';
 import { checkExpiry } from '../documents/expiry-checker';
+import { recordSearch } from '../filter/search-history';
 
 /** Execute tool calls from the AI */
 export class ToolExecutor {
@@ -80,6 +81,14 @@ export class ToolExecutor {
       numeroControlePNCP: r.numeroControlePNCP,
       objetoCompra: r.objetoCompra,
     }));
+
+    // Record search in history
+    const queryStr = (input.keywords as string[] || []).join(' ');
+    const filters: Record<string, unknown> = {};
+    if (input.uf) filters.uf = input.uf;
+    if (input.valorMin) filters.valorMin = input.valorMin;
+    if (input.valorMax) filters.valorMax = input.valorMax;
+    recordSearch(this.config.dataDir, queryStr, Object.keys(filters).length > 0 ? filters : null, results.length);
 
     return JSON.stringify({
       total: results.length,

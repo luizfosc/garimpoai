@@ -293,16 +293,106 @@ program
   });
 
 program
-  .command('analyze <id>')
-  .description('Analisar uma licitação específica com IA')
+  .command('analyze [id]')
+  .description('Analisar licitação(ões) com IA')
   .option('--json', 'Output em JSON')
-  .action(async (id: string, opts) => {
+  .option('--batch <ids>', 'Analisar múltiplas (IDs separados por vírgula)')
+  .option('--top <number>', 'Analisar top N da última busca')
+  .action(async (id: string | undefined, opts) => {
     const config = loadConfig();
     initializeDb(config.dataDir);
 
     if (!config.ia.apiKey) {
       console.log(chalk.red('\n❌ Chave de API Anthropic necessária para análise.\n'));
       process.exit(1);
+    }
+
+    // Handle --batch or --top (batch mode)
+    if (opts.batch || opts.top) {
+      const { analyzeBatch } = await import('./analyzer/batch');
+      let ids: string[] = [];
+
+      if (opts.batch) {
+        ids = opts.batch.split(',').map((s: string) => s.trim()).filter(Boolean);
+      } else if (opts.top) {
+        const { listSearches, getSearch } = require('./filter/search-history');
+        const searches = listSearches(config.dataDir, 1);
+        if (searches.length === 0) {
+          console.log(chalk.red('\n❌ Nenhuma busca anterior encontrada. Execute uma busca primeiro.\n'));
+          return;
+        }
+        const lastSearch = getSearch(config.dataDir, searches[0].id);
+        const parsedFilters = lastSearch.filters ? JSON.parse(lastSearch.filters) : {};
+        const engine = new FilterEngine(config);
+        const results = engine.search({
+          keywords: lastSearch.query.split(' '),
+          uf: parsedFilters.uf,
+          valorMin: parsedFilters.valorMin,
+          valorMax: parsedFilters.valorMax,
+          limit: parseInt(opts.top),
+        });
+        ids = results.map((r: { numeroControlePNCP: string }) => r.numeroControlePNCP);
+        if (ids.length === 0) {
+          console.log(chalk.yellow('\n⚠️  Nenhuma licitação encontrada na última busca.\n'));
+          return;
+        }
+        console.log(chalk.dim(`\n🔍 Usando top ${ids.length} da busca "${lastSearch.query}"\n`));
+      }
+
+      if (ids.length > 10) {
+        console.log(chalk.yellow(`\n⚠️  Máximo 10 por batch. Usando os primeiros 10.\n`));
+        ids = ids.slice(0, 10);
+      }
+
+      console.log(chalk.bold(`\n🔬 Analisando ${ids.length} licitações em lote...\n`));
+
+      const result = await analyzeBatch(ids, config, (completed, total) => {
+        process.stdout.write(`\r  [${completed}/${total}] Analisando...`);
+      });
+
+      console.log('\n');
+
+      if (opts.json) {
+        console.log(JSON.stringify(result, null, 2));
+        return;
+      }
+
+      // Table output
+      const Table = require('cli-table3');
+      const table = new Table({
+        head: ['#', 'ID', 'Dificuldade', 'Resumo'],
+        colWidths: [4, 25, 13, 60],
+        wordWrap: true,
+      });
+
+      for (let i = 0; i < result.results.length; i++) {
+        const r = result.results[i];
+        if (r.error) {
+          table.push([i + 1, r.id.substring(0, 22), chalk.red('erro'), r.error.substring(0, 57)]);
+        } else {
+          const diffColor = r.dificuldade === 'facil' ? chalk.green : r.dificuldade === 'dificil' ? chalk.red : chalk.yellow;
+          table.push([
+            i + 1,
+            r.id.substring(0, 22),
+            diffColor(r.dificuldade || '?'),
+            (r.resumo || '').substring(0, 57) + ((r.resumo || '').length > 57 ? '...' : ''),
+          ]);
+        }
+      }
+
+      console.log(table.toString());
+      console.log(chalk.dim(`\n  ${result.completed}/${result.total} analisadas com sucesso`));
+      if (result.stoppedByLimit) {
+        console.log(chalk.yellow('  ⚠️  Parou por limite diário atingido'));
+      }
+      console.log();
+      return;
+    }
+
+    // Single analysis mode (original)
+    if (!id) {
+      console.log(chalk.red('\n❌ Informe o ID da licitação ou use --batch/--top.\n'));
+      return;
     }
 
     const { Analyzer } = await import('./analyzer/analyzer');

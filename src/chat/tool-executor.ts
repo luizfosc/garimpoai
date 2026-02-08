@@ -13,6 +13,7 @@ import type { RegisterDocumentInput, TipoDocumento, StatusDocumento } from '../t
 import { checkExpiry } from '../documents/expiry-checker';
 import { recordSearch } from '../filter/search-history';
 import { exportLicitacoes, getExportFilename } from '../export/exporter';
+import { analyzeBatch } from '../analyzer/batch';
 
 /** Execute tool calls from the AI */
 export class ToolExecutor {
@@ -112,7 +113,32 @@ export class ToolExecutor {
   }
 
   private async analyzeLicitacao(input: Record<string, unknown>): Promise<string> {
+    // Batch mode: multiple IDs
+    const ids = input.licitacaoIds as string[] | undefined;
+    if (ids && ids.length > 0) {
+      const batchIds = ids.slice(0, 10);
+      const result = await analyzeBatch(batchIds, this.config);
+      return JSON.stringify({
+        modo: 'batch',
+        completadas: result.completed,
+        total: result.total,
+        parouPorLimite: result.stoppedByLimit,
+        resultados: result.results.map(r => ({
+          id: r.id,
+          resumo: r.resumo,
+          dificuldade: r.dificuldade,
+          proximoPasso: r.proximoPasso,
+          erro: r.error,
+        })),
+      });
+    }
+
+    // Single mode
     const id = input.licitacaoId as string;
+
+    if (!id) {
+      return JSON.stringify({ error: 'Informe licitacaoId ou licitacaoIds' });
+    }
 
     // If analyzer is available, do deep analysis
     if (this.analyzer) {

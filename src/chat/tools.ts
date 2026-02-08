@@ -50,16 +50,20 @@ export const TOOLS: Anthropic.Messages.Tool[] = [
   {
     name: 'analyze_licitacao',
     description:
-      'Analisa uma licitacao em profundidade usando IA. Retorna resumo em linguagem simples, documentos necessarios, dificuldade, dicas para iniciantes. Use quando o usuario pedir para analisar uma licitacao especifica.',
+      'Analisa licitacao(oes) em profundidade usando IA. Retorna resumo em linguagem simples, documentos necessarios, dificuldade, dicas para iniciantes. Aceita um ID ou array de IDs para analise em lote.',
     input_schema: {
       type: 'object' as const,
       properties: {
         licitacaoId: {
           type: 'string',
-          description: 'O numeroControlePNCP da licitacao a analisar',
+          description: 'O numeroControlePNCP da licitacao a analisar (para analise individual)',
+        },
+        licitacaoIds: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Array de IDs para analise em lote (max 10)',
         },
       },
-      required: ['licitacaoId'],
     },
   },
   {

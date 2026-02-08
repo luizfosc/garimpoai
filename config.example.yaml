@@ -45,3 +45,9 @@ chat:
   historyRetentionDays: 90
   # Maximo de sessoes listadas no /history (1-100)
   maxSessionsListed: 10
+
+export:
+  # Formato padrao: csv ou json
+  defaultFormat: "csv"
+  # Separador CSV (padrao brasileiro = ;)
+  csvSeparator: ";"

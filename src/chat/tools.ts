@@ -218,6 +218,43 @@ export const TOOLS: Anthropic.Messages.Tool[] = [
     },
   },
   {
+    name: 'export_data',
+    description:
+      'Exporta licitacoes em CSV ou JSON. Use quando o usuario pedir "exporta", "gera um CSV", "salva em JSON", "preciso de uma planilha".',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        format: {
+          type: 'string',
+          enum: ['csv', 'json'],
+          description: 'Formato de exportacao (default: csv)',
+        },
+        keywords: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Filtrar por palavras-chave',
+        },
+        uf: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Filtrar por UF(s)',
+        },
+        valorMin: {
+          type: 'number',
+          description: 'Valor minimo',
+        },
+        valorMax: {
+          type: 'number',
+          description: 'Valor maximo',
+        },
+        outputPath: {
+          type: 'string',
+          description: 'Caminho do arquivo de saida (opcional, auto-gera se nao informado)',
+        },
+      },
+    },
+  },
+  {
     name: 'get_expiring_documents',
     description:
       'Retorna documentos vencendo em breve ou ja vencidos. Use quando o usuario perguntar "algo vencendo?", "documentos proximos do vencimento", "certidoes vencidas".',

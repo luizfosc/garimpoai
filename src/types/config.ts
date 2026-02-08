@@ -49,11 +49,17 @@ export interface ChatConfig {
   maxSessionsListed: number;
 }
 
+export interface ExportConfig {
+  defaultFormat: 'csv' | 'json';
+  csvSeparator: string;
+}
+
 export interface GarimpoAIConfig {
   pncp: PncpConfig;
   alertas: AlertasConfig;
   ia: IaConfig;
   scheduler: SchedulerConfig;
   chat: ChatConfig;
+  export?: ExportConfig;
   dataDir: string;
 }

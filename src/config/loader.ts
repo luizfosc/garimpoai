@@ -106,6 +106,12 @@ scheduler:
 chat:
   historyRetentionDays: 90
   maxSessionsListed: 10
+
+export:
+  # Formato padrao: csv ou json
+  defaultFormat: "csv"
+  # Separador CSV (padrao brasileiro = ;)
+  csvSeparator: ";"
 `;
 }
 

@@ -53,6 +53,11 @@ export const chatConfigSchema = z.object({
   maxSessionsListed: z.number().min(1).max(100).default(10),
 });
 
+export const exportConfigSchema = z.object({
+  defaultFormat: z.enum(['csv', 'json']).default('csv'),
+  csvSeparator: z.string().default(';'),
+});
+
 export const configSchema = z.object({
   pncp: pncpConfigSchema.default({}),
   alertas: z.object({
@@ -62,6 +67,7 @@ export const configSchema = z.object({
   ia: iaConfigSchema.default({}),
   scheduler: schedulerConfigSchema.default({}),
   chat: chatConfigSchema.default({}),
+  export: exportConfigSchema.default({}),
   dataDir: z.string().default(''),
 });
 

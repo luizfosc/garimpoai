@@ -12,6 +12,7 @@ import { ComplianceEngine } from '../compliance/engine';
 import type { RegisterDocumentInput, TipoDocumento, StatusDocumento } from '../types/documents';
 import { checkExpiry } from '../documents/expiry-checker';
 import { recordSearch } from '../filter/search-history';
+import { exportLicitacoes, getExportFilename } from '../export/exporter';
 
 /** Execute tool calls from the AI */
 export class ToolExecutor {
@@ -57,6 +58,8 @@ export class ToolExecutor {
         return this.listDocuments(input);
       case 'check_compliance':
         return this.checkCompliance(input);
+      case 'export_data':
+        return this.exportData(input);
       case 'get_expiring_documents':
         return this.getExpiringDocuments(input);
       default:
@@ -314,6 +317,28 @@ export class ToolExecutor {
       const msg = err instanceof Error ? err.message : String(err);
       return JSON.stringify({ error: msg });
     }
+  }
+
+  private exportData(input: Record<string, unknown>): string {
+    const format = (input.format as string) === 'json' ? 'json' as const : 'csv' as const;
+    const outputPath = (input.outputPath as string) || getExportFilename(format);
+    const separator = this.config.export?.csvSeparator || ';';
+
+    const filters = {
+      keywords: input.keywords as string[] | undefined,
+      uf: input.uf as string[] | undefined,
+      valorMin: input.valorMin as number | undefined,
+      valorMax: input.valorMax as number | undefined,
+    };
+
+    const result = exportLicitacoes(this.config.dataDir, filters, format, outputPath, separator);
+
+    return JSON.stringify({
+      sucesso: true,
+      arquivo: result.path,
+      formato: result.format.toUpperCase(),
+      totalRegistros: result.count,
+    });
   }
 
   private getExpiringDocuments(input: Record<string, unknown>): string {

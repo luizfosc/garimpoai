@@ -222,6 +222,46 @@ program
   });
 
 program
+  .command('export <type>')
+  .description('Exportar dados em CSV ou JSON')
+  .option('--format <format>', 'Formato: csv ou json', 'csv')
+  .option('--output <path>', 'Arquivo de saída')
+  .option('--uf <ufs...>', 'Filtrar por UF(s)')
+  .option('--valor-min <number>', 'Valor mínimo')
+  .option('--valor-max <number>', 'Valor máximo')
+  .option('--keywords <words...>', 'Filtrar por palavras-chave')
+  .action((type: string, opts) => {
+    if (type !== 'licitacoes') {
+      console.log(chalk.red(`\n❌ Tipo "${type}" não suportado. Use: licitacoes\n`));
+      return;
+    }
+
+    const config = loadConfig();
+    initializeDb(config.dataDir);
+
+    const { exportLicitacoes, getExportFilename } = require('./export/exporter');
+    const format = opts.format === 'json' ? 'json' : 'csv';
+    const outputPath = opts.output || getExportFilename(format);
+    const separator = config.export?.csvSeparator || ';';
+
+    const filters: Record<string, unknown> = {};
+    if (opts.uf) filters.uf = opts.uf;
+    if (opts.valorMin) filters.valorMin = parseFloat(opts.valorMin);
+    if (opts.valorMax) filters.valorMax = parseFloat(opts.valorMax);
+    if (opts.keywords) filters.keywords = opts.keywords;
+
+    try {
+      const result = exportLicitacoes(config.dataDir, filters, format, outputPath, separator);
+      console.log(chalk.green(`\n✅ ${result.count} licitações exportadas!`));
+      console.log(chalk.dim(`   Formato: ${result.format.toUpperCase()}`));
+      console.log(chalk.dim(`   Arquivo: ${result.path}\n`));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.log(chalk.red(`\n❌ Erro ao exportar: ${msg}\n`));
+    }
+  });
+
+program
   .command('stats')
   .description('Estatísticas da base de dados')
   .action(() => {

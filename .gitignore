@@ -7,3 +7,29 @@ coverage/
 *.db-shm
 .env
 .env.local
+
+# AIOS Framework (installed, not tracked)
+.aios-core/
+.aios/
+
+# === aios-backup: auto-generated sensitive file exclusions ===
+# Tokens, credentials, secrets
+.env
+.env.*
+!.env.example
+*token*.json
+*bearer*.json
+*cookie*.json
+*secret*
+*credential*
+*.key
+
+# AIOS auto-generated status files
+.aios/claude-status.json
+.aios/devops-setup-report.yaml
+.aios/environment-report.json
+.aios/project-status.yaml
+
+# API data / cache
+*api-data*.json
+# === end aios-backup ===

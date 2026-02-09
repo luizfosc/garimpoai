@@ -1,0 +1,17 @@
+{
+  "defaultQuality": "best",
+  "defaultFormat": "mp4",
+  "outputPath": "/Users/luizfosc/Dropbox/Downloads/YT",
+  "outputTemplate": "%(title)s.%(ext)s",
+  "maxConcurrent": 3,
+  "retries": 3,
+  "rateLimit": null,
+  "writeMetadata": true,
+  "downloadThumbnail": true,
+  "convertThumbnail": "jpg",
+  "writeSubtitles": false,
+  "autoSubtitles": false,
+  "embedSubtitles": false,
+  "subtitleLanguages": ["pt", "en"],
+  "verbose": false
+}
